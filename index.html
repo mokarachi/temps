@@ -1,0 +1,169 @@
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Temps_data Triplets Extractor</title>
+<style>
+body{font-family:Arial;margin:20px;}
+textarea{width:100%;height:200px;margin-top:10px;font-family:monospace;}
+#output{margin-top:20px;white-space:pre;font-family:monospace;background:#f9f9f9;padding:10px;}
+button{margin-top:10px;margin-right:10px;}
+h2,h3{margin-bottom:5px;}
+.missing{color:red;font-weight:bold;}
+#levelSelector label{margin-right:10px;}
+small{color:#555;}
+</style>
+</head>
+<body>
+<body>
+<h2></h2>
+<a href="https://pmdnmcc.net/websites/RealTimeData.aspx" target="_blank" class="top-link">
+   Real‑Time Data (PMD NMCC)
+</a>
+
+<h2></h2>
+<h2>Temps_data Triplets Extractor</h2>
+
+<h3>Select Pressure Levels</h3>
+<div id="levelSelector">
+  <label><input type="checkbox" value="1000"> 1000</label>
+  <label><input type="checkbox" value="925"> 925</label>
+  <label><input type="checkbox" value="850"> 850</label>
+  <label><input type="checkbox" value="700"> 700</label>
+  <label><input type="checkbox" value="500"> 500</label>
+  <label><input type="checkbox" value="400"> 400</label>
+  <label><input type="checkbox" value="300"> 300</label>
+  <label><input type="checkbox" value="250"> 250</label>
+  <label><input type="checkbox" value="200"> 200</label>
+  <label><input type="checkbox" value="150"> 150</label>
+  <label><input type="checkbox" value="100"> 100</label>
+  <label><input type="checkbox" value="50"> 50</label>
+</div>
+<small>If no level is selected, 500 / 300 / 250 hPa will be used by default.</small>
+
+<textarea id="dataInput" placeholder="Paste your Temps_data (TTAA) content here"></textarea>
+<br>
+<button id="submitBtn">Submit</button>
+<button id="downloadBtn">Download TXT</button>
+<button id="copyBtn">Copy to Clipboard</button>
+
+<div id="output"></div>
+
+<script>
+(function(){
+
+// Default levels if none selected
+const DEFAULT_LEVELS = ["500","300","250"];
+
+// TEMP code → pressure level map
+const lM = {
+  "99":"1000","92":"925","85":"850","70":"700",
+  "50":"500","40":"400","30":"300","25":"250",
+  "20":"200","15":"150","10":"100","05":"50"
+};
+
+// Full pressure level order (top-down)
+const fO = ["1000","925","850","700","500","400","300","250","200","150","100","50"];
+const lI = {}; fO.forEach((v,i)=>lI[v]=i);
+
+let pT = "";
+
+function getSelectedLevels(){
+  let selected = [...document.querySelectorAll('#levelSelector input:checked')]
+                  .map(cb => cb.value);
+  return selected.length ? selected : DEFAULT_LEVELS;
+}
+
+function pD(){
+  let t = document.getElementById("dataInput").value;
+  if(!t.trim()){
+    alert("Paste your data first!");
+    return;
+  }
+
+  let lvl = getSelectedLevels();
+  let r = [];
+
+  t.split("TTAA").forEach(s=>{
+    s = s.trim();
+    if(!s) return;
+
+    let g = s.split(/\s+/);
+    if(g.length < 2) return;
+
+    let id = g[1].padStart(5,"0");
+    let trip = g.slice(2);
+    let row = [id];
+    let used = new Set();
+    let last = -1;
+
+    for(let i=0;i<trip.length;){
+      let c = trip[i];
+      if(!c || c.length < 3){ i++; continue; }
+
+      let lv = lM[c.slice(0,2)];
+      if(lv && lvl.includes(lv) && !used.has(lv)){
+        let ix = lI[lv] ?? -1;
+        if(ix > last){
+          if(used.size>0) row.push("||");
+          row.push(trip[i]||"-----", trip[i+1]||"-----", trip[i+2]||"-----");
+          used.add(lv);
+          last = ix;
+        }
+      }
+      i += 3;
+    }
+    r.push(row);
+  });
+
+  let h = ["Station_ID"]; 
+  lvl.forEach((v,idx)=>{
+    if(idx>0) h.push("||");
+    h.push(v+"_Code", v+"_Temp", v+"_Wind");
+  });
+
+  let out = h.join(" ")+"\n";
+  let htmlO = "";
+
+  r.forEach(row=>{
+    while(row.length < h.length) row.push("-----");
+    htmlO += row.map(c => c === "-----" ? '<span class="missing">-----</span>' : c).join(" ") + "\n";
+    out += row.join(" ") + "\n";
+  });
+
+pT = out;
+document.getElementById("output").innerHTML = htmlO;
+
+
+}
+
+
+// Events
+document.getElementById("submitBtn").addEventListener("click", pD);
+
+document.getElementById("downloadBtn").addEventListener("click", function(){
+  if(!pT){ alert("No data processed yet!"); return; }
+  let b = new Blob([pT], {type:'text/plain'});
+  let url = URL.createObjectURL(b);
+  let a = document.createElement("a");
+  a.href = url;
+  a.download = "selected_levels_triplets.txt";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("copyBtn").addEventListener("click", function(){
+  if(!pT){ alert("No data to copy!"); return; }
+  navigator.clipboard.writeText(pT)
+    .then(()=>alert("✅ Text copied to clipboard!"))
+    .catch(e=>alert("❌ Failed to copy text: "+e));
+});
+
+})();
+</script>
+
+</body>
+</html>
