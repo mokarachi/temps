@@ -1,6 +1,8 @@
 
 
 
+
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -65,12 +67,36 @@ small{color:#555;}
 <button id="copyBtn">Copy to Clipboard</button>
 
 <div id="output"></div>
-
+<div id="saveStatus" style="margin-top:10px;"></div>
 <script>
 (function(){
 
 // Default levels if none selected
 const DEFAULT_LEVELS = ["500","300","250"];
+
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxjK3c49_IxeLAANb7J7JzwnretlOjikB5-OpiUpvopMQ7U3ml2q0z6TC-sRtMSh4CCgQ/exec";
+
+function saveOriginalTemp(raw) {
+  const status = document.getElementById("saveStatus");
+
+  status.textContent = "Sending TEMP data to Google Sheets...";
+
+  fetch(GOOGLE_SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify({ rawData: raw })
+  })
+  .then(response => response.json())
+  .then(result => {
+    status.textContent = result.message ||
+      "Google Sheets response received.";
+  })
+  .catch(error => {
+    status.textContent =
+      "Could not confirm the save. Check Google Sheets before retrying.";
+    console.error("TEMP archive error:", error);
+  });
+}
+
 
 // TEMP code → pressure level map
 const lM = {
@@ -150,6 +176,7 @@ function pD(){
 
 pT = out;
 document.getElementById("output").innerHTML = htmlO;
+saveOriginalTemp(t);
 
 
 }
